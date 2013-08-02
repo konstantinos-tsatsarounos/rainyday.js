@@ -1,11 +1,14 @@
-var rainyday = {}; // TODO make a prototype 
+var rainyday = { twoPi: Math.PI*2 }; // TODO make a prototype 
+this.drops = [];
 
 rainyday.loadsettings = function(settings, image) {
 	settings = settings ? settings : {};
 	if (settings.glassopacity === undefined) settings.glassopacity = 0.9;
 	if (settings.imageblur  === undefined) settings.imageblur = 20;
 	if (settings.maxdropsize === undefined) settings.maxdropsize = 13;
+	if (settings.collisions === undefined) settings.collisions = true;
 	if (settings.gravity === undefined) settings.gravity = true;
+	if (settings.acceleration === undefined) settings.acceleration = 9;
 	this.settings = settings;
 	return settings;
 };
@@ -21,20 +24,7 @@ rainyday.makeitrain = function(canvasid, sourceid, settings) {
 
 	// create glass canvas
 	this.prepareGlass(canvasid, this.settings);
-	
-	this.points = this.setLinePoints(10);
-	this.x = this.glass.width/2;
-	this.y = 10;
-	this.a = 1;
-	setInterval(function() {
-		rainyday.drop(rainyday.x, rainyday.y, -1, 13);
-		rainyday.y = rainyday.y + rainyday.a;
-	}, 10);
 
-
-	if (true) {
-		return;
-	}
 	// populate glass with raindrops
 	if (true) { // TODO externalize
 		setInterval(function() {
@@ -80,52 +70,67 @@ rainyday.prepareGlass = function(canvasid, settings) {
 };
 
 rainyday.drop = function(centerX, centerY, min, base) {
-	var maxRad = Math.random()*base+min;
-	if (min == -1) {
-		maxRad = base;
+	var drop = {};
+	drop.x = centerX;
+	drop.y = centerY;
+	drop.maxRad = Math.random()*base+min;;
+	drop.minRad = 0.78*drop.maxRad;
+	drop.rainyday = this;
+
+	this.drawDrop(drop);
+
+	if (this.settings.collisions) {
+		// TODO this.drops.add(drop);
 	}
 
-	if (centerY > this.glass.height) {
-		centerY = 10;
-		this.y = centerY;
+	if (this.settings.gravity) {
+		if (drop.maxRad > 8) { // TODO
+			drop.intid = setInterval(
+				(function(self) {
+					return function() {
+						self.rainyday.context.clearRect(self.x - self.maxRad - 1, self.y - self.maxRad - 1, 2*self.maxRad + 2, 2*self.maxRad + 2);
+						if (self.y - self.maxRad > self.rainyday.glass.height) {
+							clearInterval(drop.intid);
+							return;
+						}
+						self.y += self.rainyday.settings.acceleration / 5;
+						self.rainyday.drawDrop(self);
+					}
+				})(drop),
+				10
+			);
+		}
 	}
+};
 
-	this.a = 1 + Math.floor(centerY / 100);
-
-	var minRad = 0.78*maxRad;
-	var phase = Math.random()*Math.PI*2;
+rainyday.drawDrop = function(drop) {
+	var phase = Math.random()*this.twoPi;
 	var point;
 	var rad, theta;
-	var twoPi = 2*Math.PI;
 	var x0,y0;
-
-	this.context.clearRect(centerX - 2*maxRad, centerY - 2*maxRad, centerX + 2*maxRad, centerY + 2*maxRad);
-		
-	//generate the random function that will be used to vary the radius, 9 iterations of subdivision
-	//var pointList = this.setLinePoints(10);
 
 	this.context.save();
 	this.context.beginPath();
-	point = this.points.first;
+	point = this.setLinePoints(10).first;
 	theta = phase;
-	rad = minRad + point.y*(maxRad - minRad);
-	x0 = centerX + rad*Math.cos(theta);
-	y0 = centerY + rad*Math.sin(theta);
+	rad = drop.minRad + point.y*(drop.maxRad - drop.minRad);
+	x0 = drop.x + rad*Math.cos(theta);
+	y0 = drop.y + rad*Math.sin(theta);
 	this.context.lineTo(x0, y0);
 	while (point.next != null) {
 		point = point.next;
-		theta = twoPi*point.x + phase;
-		rad = minRad + point.y*(maxRad - minRad);
-		x0 = centerX + rad*Math.cos(theta);
-		y0 = centerY + rad*Math.sin(theta);
+		theta = this.twoPi*point.x + phase;
+		rad = drop.minRad + point.y*(drop.maxRad - drop.minRad);
+		x0 = drop.x + rad*Math.cos(theta);
+		y0 = drop.y + rad*Math.sin(theta);
 		this.context.lineTo(x0, y0);
 	}
 	this.context.stroke();
 	
 	this.context.clip();
-	this.context.drawImage(this.mini, centerX - maxRad, centerY - maxRad); // TODO select correct miniature based on the position 
+	this.context.drawImage(this.mini, drop.x - drop.maxRad, drop.y - drop.maxRad); // TODO select correct miniature based on the position 
 	
-	this.context.restore();		
+	this.context.restore();
 };
 
 rainyday.setLinePoints = function(iterations) {
