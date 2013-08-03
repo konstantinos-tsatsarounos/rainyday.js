@@ -28,9 +28,7 @@ RainyDay.prototype.loadSettings = function(settings)
 	if (settings.imageblur  === undefined) settings.imageblur = 20;
 	if (settings.collisions === undefined) settings.collisions = true;
 	if (settings.gravity === undefined) settings.gravity = true;
-	if (settings.acceleration === undefined) settings.acceleration = 9;
-	if (settings.collisions === undefined) settings.collisions = true;
-	if (settings.trail === undefined) settings.trail = false;
+	if (settings.trail === undefined) settings.trail = true;
 	if (settings.gravitythreshold === undefined) settings.gravitythreshold = 5;
 	return settings;
 };
@@ -52,6 +50,17 @@ RainyDay.prototype.prepareMiniatures = function()
 	this.height = size;
 
 	var miniContext = this.minis[0].getContext('2d');
+
+	/*miniContext.fillRect(0, 0, size, size);
+
+	var radGrad = miniContext.createRadialGradient(
+    	size / 2, size / 2, 50, 
+    	size / 2, size / 2, size/2);
+		radGrad.addColorStop(0, "#000");
+		radGrad.addColorStop(1, "transparent");
+
+	miniContext.drawImageGradient(this.img, 0, 0, size, size, radGrad);*/
+
 	miniContext.translate(size/2, size/2);
 	miniContext.rotate(Math.PI);
 
@@ -234,12 +243,11 @@ Drop.prototype.draw = function()
 		y0 = this.y + rad*Math.sin(theta);
 		this.context.lineTo(x0, y0);
 	}
-	
-	this.context.clip();
 
+	this.context.clip();
 	// TODO select correct miniature based on the position 
 	this.context.drawImage(this.minis[0], this.x - this.r1, this.y - this.r1);
-	
+
 	this.context.restore();
 };
 
@@ -283,13 +291,10 @@ Drop.prototype.animate = function(maxY)
 
 				if (self.speed) {
 					self.speed += 0.005 * Math.floor(self.r1);
-					self.distortion += 0.005;
-					if (self.distortion > 1) {
-						self.distortion = 0.99;
-					}
-					self.r2 = self.distortion * self.r1;
 				} else {
 					self.speed = 0.1;
+					self.distortion = 0.99;
+					self.r2 = self.distortion * self.r1;
 				}
 				self.y += self.speed;
 				self.draw();
@@ -622,3 +627,73 @@ function DropListItem(value)
 	this.value = value;
 	return this;
 }
+
+(function () {
+    // If browser doesn't support canvas exit function.
+    if (!CanvasRenderingContext2D) return;
+
+    // holds a dynamically create canvas element that the gradient is drawn onto.
+    var imageGradientCanvas;
+
+    CanvasRenderingContext2D.prototype.drawImageGradient = function (img, x, y, w, h, gradient) {
+        var ctx = this;
+
+        // throw error if image to use for gradient hasn't loaded.
+        if (!img.complete) {
+            var err = new Error();
+            err.message = "CanvasRenderingContext2D.prototype.drawImageGradient: The image has not loaded."
+            throw err;
+        }
+
+        if (!imageGradientCanvas) {
+            imageGradientCanvas = document.createElement("canvas");
+        }
+
+        imageGradientCanvas.width = w;
+        imageGradientCanvas.height = h;
+
+        var imgCtx = imageGradientCanvas.getContext("2d");
+
+        var gradientImageData = createRectangularGradientImageData();
+
+        imgCtx.drawImage(img, 0, 0, w, h);
+
+        var imageImageData = imgCtx.getImageData(0, 0, w, h);
+
+        var ctxImageData = ctx.getImageData(x, y, w, h);
+
+        var opacity = 1;
+
+        var ctxImageDataData = ctxImageData.data;
+        var imageImageDataData = imageImageData.data;
+        var gradientImageDataData = gradientImageData.data;
+        var ctxImageDataDataLength = ctxImageData.data.length;
+
+        var i;
+        for (i = 0; i < ctxImageDataDataLength; i += 4) {
+            opacity = gradientImageDataData[i + 3] / 255;
+
+            // Update rgb values of context image data.
+            ctxImageDataData[i] =
+            (imageImageDataData[i] * opacity) +
+            (ctxImageDataData[i] * (1 - opacity));
+
+            ctxImageDataData[i + 1] =
+            (imageImageDataData[i + 1] * opacity) +
+            (ctxImageDataData[i + 1] * (1 - opacity));
+
+            ctxImageDataData[i + 2] =
+            (imageImageDataData[i + 2] * opacity) +
+            (ctxImageDataData[i + 2] * (1 - opacity));
+        }
+
+        ctx.putImageData(ctxImageData, x, y);
+
+        function createRectangularGradientImageData() {
+            imgCtx.fillStyle = gradient;
+            imgCtx.fillRect(0, 0, w, h);
+
+            return imgCtx.getImageData(0, 0, w, h);
+        }
+    }
+})();
