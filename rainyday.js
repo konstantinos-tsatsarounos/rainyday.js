@@ -1,139 +1,107 @@
-var rainyday = { twoPi: Math.PI*2 }; // TODO make a prototype 
-this.drops = [];
+function RainyDay(canvasid, sourceid, settings)
+{
+	this.canvasid = canvasid;
+	this.canvas = document.getElementById(canvasid);
 
-rainyday.loadsettings = function(settings, image) {
+	this.sourceid = sourceid;
+	this.img = document.getElementById(sourceid);
+
+	this.settings = this.loadSettings(settings);
+
+	this.prepareBackground();
+	this.w = this.canvas.width;
+	this.h = this.canvas.height;
+
+	this.prepareMiniatures();
+	this.prepareGlass();
+}
+
+RainyDay.prototype.loadSettings = function(settings)
+{
 	settings = settings ? settings : {};
 	if (settings.glassopacity === undefined) settings.glassopacity = 0.9;
 	if (settings.imageblur  === undefined) settings.imageblur = 20;
-	if (settings.maxdropsize === undefined) settings.maxdropsize = 13;
+	if (settings.maxdropsize === undefined) settings.maxdropsize = 10;
 	if (settings.collisions === undefined) settings.collisions = true;
 	if (settings.gravity === undefined) settings.gravity = true;
 	if (settings.acceleration === undefined) settings.acceleration = 9;
-	this.settings = settings;
 	return settings;
 };
 
-rainyday.makeitrain = function(canvasid, sourceid, settings) {
-	this.loadsettings(settings);
-
-	// draw & blur the image
-	stackBlurImage(sourceid, canvasid, this.settings.imageblur, window.innerWidth, window.innerHeight);
-
-	// prepare miniature for drop fill
-	this.prepareMiniatures(sourceid);
-
-	// create glass canvas
-	this.prepareGlass(canvasid, this.settings);
-
-	// populate glass with raindrops
-	if (true) { // TODO externalize
-		setInterval(function() {
-			if (Math.random() > 0.88) {
-				rainyday.drop(Math.random()*rainyday.glass.width, Math.random()*rainyday.glass.height, 5, rainyday.settings.maxdropsize - 5);			
-			} else {
-				rainyday.drop(Math.random()*rainyday.glass.width, Math.random()*rainyday.glass.height, 2, 3);	
-			}
-		}, 200);
-	} else {
-		for (var i = 0; i < 40; i++) {
-			this.drop(Math.random()*this.glass.width, Math.random()*this.glass.height, 5, this.settings.maxdropsize - 5);
-		}
-		for (var i = 0; i < 225; i++) {
-			this.drop(Math.random()*this.glass.width, Math.random()*this.glass.height, 0, 3);
-		}
-	}
+RainyDay.prototype.prepareBackground = function()
+{
+	// TODO proper size and position
+	stackBlurImage(this.sourceid, this.canvasid, this.settings.imageblur, window.innerWidth, window.innerHeight);
 };
 
-rainyday.prepareMiniatures = function(sourceid) { // TODO prepare multiple miniatures
-	this.mini = document.createElement('canvas');
+RainyDay.prototype.prepareMiniatures = function()
+{
+	this.minis = [];
+
+	// TODO multiple miniatures
+	this.minis[0] = document.createElement('canvas');
 	var size = 2 * this.settings.maxdropsize;
 	this.width = size;
 	this.height = size;
 
-	this.miniContext = this.mini.getContext('2d');
-	this.miniContext.translate(size/2, size/2);
-	this.miniContext.rotate(Math.PI);
+	var miniContext = this.minis[0].getContext('2d');
+	miniContext.translate(size/2, size/2);
+	miniContext.rotate(Math.PI);
 
-	this.img = document.getElementById(sourceid);
-	this.miniContext.drawImage(this.img, -size/2, -size/2, size, size);
+	miniContext.drawImage(this.img, -size/2, -size/2, size, size);
 };
 
-rainyday.prepareGlass = function(canvasid, settings) {
-	this.canvas = document.getElementById(canvasid);
+RainyDay.prototype.prepareGlass = function()
+{
 	this.glass = document.createElement('canvas');
 	this.glass.width = this.canvas.width;
 	this.glass.height = this.canvas.height;
 	this.glass.style = this.canvas.style; // TODO doesn't quite work
 	this.canvas.parentNode.appendChild(this.glass);
 	this.context = this.glass.getContext('2d');
-	this.glass.style.opacity = settings.glassopacity;
+	this.glass.style.opacity = this.settings.glassopacity;
 };
 
-rainyday.drop = function(centerX, centerY, min, base) {
-	var drop = {};
-	drop.x = centerX;
-	drop.y = centerY;
-	drop.maxRad = Math.random()*base+min;;
-	drop.minRad = 0.78*drop.maxRad;
-	drop.rainyday = this;
-
-	this.drawDrop(drop);
-
-	if (this.settings.collisions) {
-		// TODO this.drops.add(drop);
+RainyDay.prototype.pic = function()
+{
+	for (var i = 0; i < 225; i++) {
+		// small drops
+		this.putDrop(new Drop(this, Math.random()*this.w, Math.random()*this.h, 2, 3));
 	}
+	for (var i = 0; i < 40; i++) {
+		// larger drops
+		this.putDrop(new Drop(this, Math.random()*this.w, Math.random()*this.h, 5, this.settings.maxdropsize - 5));
+	}
+};
 
+RainyDay.prototype.rain = function(frequency)
+{
+	this.intid = setInterval(
+		(function(self) {
+			return function() {
+				if (Math.random() > 0.88) {
+					self.putDrop(new Drop(self, Math.random()*self.w, Math.random()*self.h, 5, self.settings.maxdropsize - 5));			
+				} else {
+					self.putDrop(new Drop(self, Math.random()*self.w, Math.random()*self.h, 0, 3));	
+				}
+			}
+		})(this),
+		frequency === undefined ? 100 : frequency
+	);
+};
+
+RainyDay.prototype.putDrop = function(drop)
+{
+	drop.draw();
 	if (this.settings.gravity) {
-		if (drop.maxRad > 8) { // TODO
-			drop.intid = setInterval(
-				(function(self) {
-					return function() {
-						self.rainyday.context.clearRect(self.x - self.maxRad - 1, self.y - self.maxRad - 1, 2*self.maxRad + 2, 2*self.maxRad + 2);
-						if (self.y - self.maxRad > self.rainyday.glass.height) {
-							clearInterval(drop.intid);
-							return;
-						}
-						self.y += self.rainyday.settings.acceleration / 5;
-						self.rainyday.drawDrop(self);
-					}
-				})(drop),
-				10
-			);
+		if (drop.r1 > 7) { // TODO
+			drop.animate(this.w);
 		}
 	}
 };
 
-rainyday.drawDrop = function(drop) {
-	var phase = Math.random()*this.twoPi;
-	var point;
-	var rad, theta;
-	var x0,y0;
-
-	this.context.save();
-	this.context.beginPath();
-	point = this.setLinePoints(10).first;
-	theta = phase;
-	rad = drop.minRad + point.y*(drop.maxRad - drop.minRad);
-	x0 = drop.x + rad*Math.cos(theta);
-	y0 = drop.y + rad*Math.sin(theta);
-	this.context.lineTo(x0, y0);
-	while (point.next != null) {
-		point = point.next;
-		theta = this.twoPi*point.x + phase;
-		rad = drop.minRad + point.y*(drop.maxRad - drop.minRad);
-		x0 = drop.x + rad*Math.cos(theta);
-		y0 = drop.y + rad*Math.sin(theta);
-		this.context.lineTo(x0, y0);
-	}
-	this.context.stroke();
-	
-	this.context.clip();
-	this.context.drawImage(this.mini, drop.x - drop.maxRad, drop.y - drop.maxRad); // TODO select correct miniature based on the position 
-	
-	this.context.restore();
-};
-
-rainyday.setLinePoints = function(iterations) {
+RainyDay.prototype.getLinepoints = function(iterations)
+{
 	var pointList = {};
 	pointList.first = {x:0, y:1};
 	var lastPoint = {x:1, y:1}
@@ -179,16 +147,80 @@ rainyday.setLinePoints = function(iterations) {
 			point.y = normalizeRate*(point.y - minY);
 			point = point.next;
 		}
-	}
-	//unlikely that max = min, but could happen if using zero iterations. In this case, set all points equal to 1.
-	else {
+	} else {
 		point = pointList.first;
 		while (point != null) {
 			point.y = 1;
 			point = point.next;
 		}
 	}
-		
+
 	return pointList;		
 };
 
+function Drop(rainyday, centerX, centerY, min, base)
+{
+	this.x = centerX;
+	this.y = centerY;
+	this.r1 = (Math.random() * base) + min;
+	this.r2 = 0.78 * this.r1;
+	this.linepoints = rainyday.getLinepoints(5); // TODO less for smaller?
+	this.context = rainyday.context;
+	this.minis = rainyday.minis;
+}
+
+Drop.prototype.draw = function() 
+{
+	var phase = Math.random()*Math.PI*2;
+	var point;
+	var rad, theta;
+	var x0,y0;
+
+	this.context.save();
+	this.context.beginPath();
+	point = this.linepoints.first;
+	theta = phase;
+	rad = this.r2 + point.y*(this.r1 - this.r2);
+	x0 = this.x + rad*Math.cos(theta);
+	y0 = this.y + rad*Math.sin(theta);
+	this.context.lineTo(x0, y0);
+	while (point.next != null) {
+		point = point.next;
+		theta = (Math.PI*2*point.x) + phase;
+		rad = this.r2 + point.y*(this.r1 - this.r2);
+		x0 = this.x + rad*Math.cos(theta);
+		y0 = this.y + rad*Math.sin(theta);
+		this.context.lineTo(x0, y0);
+	}
+	this.context.stroke();
+	
+	this.context.clip();
+
+	// TODO select correct miniature based on the position 
+	this.context.drawImage(this.minis[0], this.x - this.r1, this.y - this.r1);
+	
+	this.context.restore();
+};
+
+Drop.prototype.animate = function(maxY)
+{
+	this.intid = setInterval(
+		(function(self) {
+			return function() {
+				self.context.clearRect(self.x - self.r1 - 1, self.y - self.r1 - 1, 2*self.r1 + 2, 2*self.r1 + 2);
+				if (self.y - self.r1 > maxY) {
+					clearInterval(this.intid);
+					return;
+				}
+				if (self.speed) {
+					self.speed += 0.01;
+				} else {
+					self.speed = 0.1;
+				}
+				self.y += self.speed; // TODO
+				self.draw();
+			}
+		})(this),
+		10
+	);
+};
