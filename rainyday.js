@@ -244,10 +244,7 @@ Drop.prototype.animate = function(maxY)
 				var margin = 0;
 
 				if (self.rainyday.settings.collisions) {
-					for (var i = Math.floor(self.x - self.r1 - margin); i < Math.ceil(self.x + self.r1 + margin), ++i) {
-						var drops = self.rainyday.drops[i];
 
-					}
 				}
 			}
 		})(this),
