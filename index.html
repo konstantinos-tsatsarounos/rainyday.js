@@ -7,9 +7,33 @@
 		</style>
 		<script src="StackBlur.js" type="text/javascript"></script> <!-- GET RID OF THIS -->
 		<script src="rainyday.js" type="text/javascript"></script>
+		<script type="text/javascript">
+ 			function demo() {
+ 				var hash = window.location.hash.substring(1);
+ 				console.log(hash);
+
+ 				var settings = {};
+ 				if (hash == "full") {
+ 					settings.collisions = true;
+ 					settings.trail = true;
+ 					settings.maxdropsize = 10;
+					new RainyDay('canvas','forest', settings).rain();
+ 				} else if (hash == "animate") {
+ 					settings.collisions = false;
+ 					settings.trail = false;
+ 					settings.maxdropsize = 10;
+ 					new RainyDay('canvas','city', settings).rain();
+ 				} else {
+ 					settings.gravity = false;
+					new RainyDay('canvas','water', settings).pic();
+ 				}
+ 			}
+		</script>
 	</head>
-	<body onload="new RainyDay('canvas','forest').rain();">
+	<body onload="demo();">
 		<img id="forest" src="forest.jpg" />
+		<img id="city" src="city.jpg" />
+		<img id="water" src="water.jpg" />
 		<div id="cholder">
 			<canvas id="canvas"></canvas>
 		</div>

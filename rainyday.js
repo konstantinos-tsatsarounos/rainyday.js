@@ -12,7 +12,14 @@ function RainyDay(canvasid, sourceid, settings)
 	this.w = this.canvas.width;
 	this.h = this.canvas.height;
 
-	this.prepareMiniatures();
+	if (this.settings.collisions) {
+		this.drops = [];
+		for (var i = 0; i < this.w; ++i) {
+			this.drops[i] = [];
+		}
+	}
+this
+	.prepareMiniatures();
 	this.prepareGlass();
 }
 
@@ -25,6 +32,8 @@ RainyDay.prototype.loadSettings = function(settings)
 	if (settings.collisions === undefined) settings.collisions = true;
 	if (settings.gravity === undefined) settings.gravity = true;
 	if (settings.acceleration === undefined) settings.acceleration = 9;
+	if (settings.collisions === undefined) settings.collisions = true;
+	if (settings.trail === undefined) settings.trail = false;
 	return settings;
 };
 
@@ -93,6 +102,9 @@ RainyDay.prototype.rain = function(frequency)
 RainyDay.prototype.putDrop = function(drop)
 {
 	drop.draw();
+	if (this.settings.collisions) {
+		this.drops[drop.x].push(drop);
+	}
 	if (this.settings.gravity) {
 		if (drop.r1 > 7) { // TODO
 			drop.animate(this.w);
@@ -160,11 +172,12 @@ RainyDay.prototype.getLinepoints = function(iterations)
 
 function Drop(rainyday, centerX, centerY, min, base)
 {
-	this.x = centerX;
+	this.x = Math.floor(centerX);
 	this.y = centerY;
 	this.r1 = (Math.random() * base) + min;
-	this.r2 = 0.78 * this.r1;
-	this.linepoints = rainyday.getLinepoints(5); // TODO less for smaller?
+	this.r2 = 0.6 * this.r1;
+	this.rainyday = rainyday;
+	this.linepoints = rainyday.getLinepoints(3); // TODO less for smaller?
 	this.context = rainyday.context;
 	this.minis = rainyday.minis;
 }
@@ -209,16 +222,33 @@ Drop.prototype.animate = function(maxY)
 			return function() {
 				self.context.clearRect(self.x - self.r1 - 1, self.y - self.r1 - 1, 2*self.r1 + 2, 2*self.r1 + 2);
 				if (self.y - self.r1 > maxY) {
-					clearInterval(this.intid);
+					clearInterval(self.intid);
 					return;
 				}
 				if (self.speed) {
-					self.speed += 0.01;
+					self.speed += 0.02;
 				} else {
 					self.speed = 0.1;
 				}
 				self.y += self.speed; // TODO
 				self.draw();
+
+				if (self.rainyday.settings.trail) {
+					// leave trail
+					if (!self.trail || self.y - self.trail >= Math.random()*10*self.r1) {
+						self.trail = self.y;
+						self.rainyday.putDrop(new Drop(self.rainyday, self.x, self.y - self.r1 - 5, 0, 3));
+					}
+				}
+
+				var margin = 0;
+
+				if (self.rainyday.settings.collisions) {
+					for (var i = Math.floor(self.x - self.r1 - margin); i < Math.ceil(self.x + self.r1 + margin), ++i) {
+						var drops = self.rainyday.drops[i];
+
+					}
+				}
 			}
 		})(this),
 		10
