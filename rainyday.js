@@ -13,9 +13,11 @@ function RainyDay(canvasid, sourceid, settings)
 	this.h = this.canvas.height;
 
 	if (this.settings.collisions) {
+		this.drops = [];
+		for (var i = 0; i < this.w; ++i) {
+			this.drops[i] = new DropList();
+		}
 	}
-this
-	.prepareMiniatures();
 	this.prepareGlass();
 }
 
@@ -24,12 +26,12 @@ RainyDay.prototype.loadSettings = function(settings)
 	settings = settings ? settings : {};
 	if (settings.glassopacity === undefined) settings.glassopacity = 0.9;
 	if (settings.imageblur  === undefined) settings.imageblur = 20;
-	if (settings.maxdropsize === undefined) settings.maxdropsize = 10;
 	if (settings.collisions === undefined) settings.collisions = true;
 	if (settings.gravity === undefined) settings.gravity = true;
 	if (settings.acceleration === undefined) settings.acceleration = 9;
 	if (settings.collisions === undefined) settings.collisions = true;
 	if (settings.trail === undefined) settings.trail = false;
+	if (settings.gravitythreshold === undefined) settings.gravitythreshold = 5;
 	return settings;
 };
 
@@ -45,7 +47,7 @@ RainyDay.prototype.prepareMiniatures = function()
 
 	// TODO multiple miniatures
 	this.minis[0] = document.createElement('canvas');
-	var size = 2 * this.settings.maxdropsize;
+	var size = 4 * this.settings.maxdropsize;
 	this.width = size;
 	this.height = size;
 
@@ -67,41 +69,61 @@ RainyDay.prototype.prepareGlass = function()
 	this.glass.style.opacity = this.settings.glassopacity;
 };
 
-RainyDay.prototype.pic = function()
+RainyDay.prototype.preset = function(min, base, quan)
 {
-	for (var i = 0; i < 225; i++) {
-		// small drops
-		this.putDrop(new Drop(this, Math.random()*this.w, Math.random()*this.h, 2, 3));
+	return {
+		"min": min,
+		"base": base,
+		"quan" : quan
 	}
-	for (var i = 0; i < 40; i++) {
-		// larger drops
-		this.putDrop(new Drop(this, Math.random()*this.w, Math.random()*this.h, 5, this.settings.maxdropsize - 5));
-	}
-};
+}
 
-RainyDay.prototype.rain = function(frequency)
+RainyDay.prototype.rain = function(presets, speed)
 {
-	this.intid = setInterval(
-		(function(self) {
-			return function() {
-				if (Math.random() > 0.88) {
-					self.putDrop(new Drop(self, Math.random()*self.w, Math.random()*self.h, 5, self.settings.maxdropsize - 5));			
-				} else {
-					self.putDrop(new Drop(self, Math.random()*self.w, Math.random()*self.h, 0, 3));	
+	this.settings.maxdropsize = presets[presets.length-1].base;
+	this.prepareMiniatures();
+
+	if (speed > 0) {
+		// animation
+		this.presets = presets;
+		setInterval(
+			(function(self) {
+				return function() {
+					var random = Math.random();
+					// select matching preset
+					var preset;
+					for (var i = 0; i < presets.length; i++) {
+						if (random < presets[i].quan) {
+							preset = presets[i];
+							break;
+						}
+					}
+					if (preset) {
+						self.putDrop(new Drop(self, Math.random()*self.w, Math.random()*self.h, preset.min, preset.base));
+					}
 				}
+			})(this),
+			speed
+		);
+	} else {
+		// static picture
+		for (var i = 0; i < presets.length; i++) {
+			var preset = presets[i];
+			for (var c = 0; c < preset.quan; ++c) {
+				this.putDrop(new Drop(this, Math.random()*this.w, Math.random()*this.h, preset.min, preset.base));
 			}
-		})(this),
-		frequency === undefined ? 100 : frequency
-	);
+		}
+	}
 };
 
 RainyDay.prototype.putDrop = function(drop)
 {
 	drop.draw();
 	if (this.settings.collisions) {
+		this.drops[Math.floor(drop.x)].push(new DropListItem(drop));
 	}
 	if (this.settings.gravity) {
-		if (drop.r1 > 7) { // TODO
+		if (drop.r1 > this.settings.gravitythreshold) {
 			drop.animate(this.w);
 		}
 	}
@@ -170,16 +192,28 @@ function Drop(rainyday, centerX, centerY, min, base)
 	this.x = Math.floor(centerX);
 	this.y = centerY;
 	this.r1 = (Math.random() * base) + min;
-	this.r2 = 0.6 * this.r1;
 	this.rainyday = rainyday;
-	this.linepoints = rainyday.getLinepoints(3); // TODO less for smaller?
+	var iterations = 0;
+	this.distortion = 0;
+	if (this.r1 < 5) {
+		iterations = 3;
+		this.distortion = 1;
+	} else if (this.r1 < 15) {
+		iterations = 6;
+		this.distortion = 0.6;
+	} else {
+		iterations = 8;
+		this.distortion = 0.1;
+	}
+	this.r2 = this.distortion * this.r1;
+	this.linepoints = rainyday.getLinepoints(iterations);
 	this.context = rainyday.context;
 	this.minis = rainyday.minis;
 }
 
 Drop.prototype.draw = function() 
 {
-	var phase = Math.random()*Math.PI*2;
+	var phase = 0;
 	var point;
 	var rad, theta;
 	var x0,y0;
@@ -200,7 +234,6 @@ Drop.prototype.draw = function()
 		y0 = this.y + rad*Math.sin(theta);
 		this.context.lineTo(x0, y0);
 	}
-	this.context.stroke();
 	
 	this.context.clip();
 
@@ -220,26 +253,53 @@ Drop.prototype.animate = function(maxY)
 					clearInterval(self.intid);
 					return;
 				}
+
+				// check for collisions
+				if (self.rainyday.settings.collisions) {
+					for (var i = Math.floor(self.x - self.r1 - 1); i < Math.ceil(self.x + self.r1 + 1); ++i) {
+						var drops = self.rainyday.drops[i];
+						if (drops && drops.first.next != null) {
+							var collider = drops.first.next;
+							while (collider.next != null) {
+								if (collider.value != null && collider.value.y > self.y && collider.value.y <= Math.ceil(self.y + self.r1)) {
+    								if (collider.value.r1 < self.r1) {
+    									// larger one handles the collision
+
+    									self.x = collider.value.x;
+
+    									drops.push(self);
+
+    									// remove the collider
+    									drops.remove(collider);
+
+    									break;
+    								}
+    							}
+    							collider = collider.next;
+							}
+						}
+					}
+				}
+
 				if (self.speed) {
-					self.speed += 0.02;
+					self.speed += 0.005 * Math.floor(self.r1);
+					self.distortion += 0.005;
+					if (self.distortion > 1) {
+						self.distortion = 0.99;
+					}
+					self.r2 = self.distortion * self.r1;
 				} else {
 					self.speed = 0.1;
 				}
-				self.y += self.speed; // TODO
+				self.y += self.speed;
 				self.draw();
 
 				if (self.rainyday.settings.trail) {
 					// leave trail
 					if (!self.trail || self.y - self.trail >= Math.random()*10*self.r1) {
 						self.trail = self.y;
-						self.rainyday.putDrop(new Drop(self.rainyday, self.x, self.y - self.r1 - 5, 0, 3));
+						self.rainyday.putDrop(new Drop(self.rainyday, self.x, self.y - self.r1 - 5, 0, Math.ceil(self.r1 / 5)));
 					}
-				}
-
-				var margin = 0;
-
-				if (self.rainyday.settings.collisions) {
-
 				}
 			}
 		})(this),
@@ -536,4 +596,29 @@ function BlurStack()
 	this.b = 0;
 	this.a = 0;
 	this.next = null;
+}
+
+function DropList()
+{
+	this.first = new DropListItem(null);
+	this.first.next = null;
+	this.last = this.first;
+}
+
+DropList.prototype.push = function(item)
+{
+	this.last.next = item;
+	item.previous = this.last;
+	this.last = this.last.next;
+}
+
+DropList.prototype.remove = function(item)
+{
+	item.previous.next = item.next;
+}
+
+function DropListItem(value)
+{
+	this.value = value;
+	return this;
 }

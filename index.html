@@ -11,18 +11,32 @@
  				var hash = window.location.hash.substring(1);
  				var settings = {};
  				if (hash == "full") {
- 					settings.collisions = true;
+ 					settings.collisions = false;
  					settings.trail = true;
- 					settings.maxdropsize = 10;
-					new RainyDay('canvas','forest', settings).rain();
+ 					settings.gravitythreshold = 3;
+
+ 					var rd =  new RainyDay('canvas','forest', settings);
+ 					var presets = [];
+ 					presets[0] = rd.preset(0, 2, 0.88);
+ 					presets[1] = rd.preset(3, 7, 1);
+					rd.rain(presets, 10);
  				} else if (hash == "animate") {
  					settings.collisions = false;
- 					settings.trail = false;
- 					settings.maxdropsize = 10;
- 					new RainyDay('canvas','city', settings).rain();
+ 					settings.trail = true;
+ 					settings.gravitythreshold = 3;
+
+ 					var rd =  new RainyDay('canvas','city', settings);
+ 					var presets = [];
+ 					presets[0] = rd.preset(3, 2, 0.88);
+ 					presets[1] = rd.preset(3, 7, 1);
+					rd.rain(presets, 200);
  				} else {
  					settings.gravity = false;
-					new RainyDay('canvas','water', settings).pic();
+ 					var rd =  new RainyDay('canvas','water', settings);
+ 					var presets = [];
+ 					presets[0] = rd.preset(2, 3, 225);
+ 					presets[1] = rd.preset(5, 10, 40);
+					rd.rain(presets);
  				}
  			}
 		</script>
