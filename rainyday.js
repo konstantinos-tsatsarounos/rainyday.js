@@ -196,13 +196,13 @@ function Drop(rainyday, centerX, centerY, min, base)
 	var iterations = 0;
 	this.distortion = 0;
 	if (this.r1 < 5) {
-		iterations = 3;
+		iterations = 5;
 		this.distortion = 1;
 	} else if (this.r1 < 15) {
 		iterations = 6;
 		this.distortion = 0.6;
 	} else {
-		iterations = 8;
+		iterations = 7;
 		this.distortion = 0.1;
 	}
 	this.r2 = this.distortion * this.r1;

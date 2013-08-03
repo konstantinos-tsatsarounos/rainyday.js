@@ -18,7 +18,7 @@
  					var rd =  new RainyDay('canvas','forest', settings);
  					var presets = [];
  					presets[0] = rd.preset(0, 2, 0.88);
- 					presets[1] = rd.preset(3, 7, 1);
+ 					presets[1] = rd.preset(3, 3, 1);
 					rd.rain(presets, 10);
  				} else if (hash == "animate") {
  					settings.collisions = false;
@@ -27,9 +27,8 @@
 
  					var rd =  new RainyDay('canvas','city', settings);
  					var presets = [];
- 					presets[0] = rd.preset(3, 2, 0.88);
- 					presets[1] = rd.preset(3, 7, 1);
-					rd.rain(presets, 200);
+ 					presets[0] = rd.preset(3, 3, 1);
+					rd.rain(presets, 500);
  				} else {
  					settings.gravity = false;
  					var rd =  new RainyDay('canvas','water', settings);
