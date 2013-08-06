@@ -1,4 +1,4 @@
-function RainyDay(canvasid, sourceid, settings, width, height)
+function RainyDay(canvasid, sourceid, width, height, opacity, blur)
 {
 	this.canvasid = canvasid;
 	this.canvas = document.getElementById(canvasid);
@@ -6,54 +6,29 @@ function RainyDay(canvasid, sourceid, settings, width, height)
 	this.sourceid = sourceid;
 	this.img = document.getElementById(sourceid);
 
-	this.settings = this.loadSettings(settings);
-
-	this.prepareBackground(this.settings.imageblur, width, height);
+	this.prepareBackground(blur ? blur : 20, width, height);
 	this.w = this.canvas.width;
 	this.h = this.canvas.height;
 
-	this.prepareGlass();
+	this.prepareGlass(opacity ? opacity : 0.9);
+	this.prepareMiniatures();
 }
-
-RainyDay.prototype.loadSettings = function(settings)
-{
-	settings = settings ? settings : {};
-	if (settings.glassopacity === undefined) settings.glassopacity = 0.9;
-	if (settings.imageblur  === undefined) settings.imageblur = 20;
-	if (settings.gravity === undefined) settings.gravity = true;
-	if (settings.gravitythreshold === undefined) settings.gravitythreshold = 5;
-	return settings;
-};
 
 RainyDay.prototype.prepareMiniatures = function()
 {
-	this.minis = [];
+	this.mini = document.createElement('canvas');
+	this.mini.width = this.canvas.width/2;
+	this.mini.height = this.canvas.height/2;
 
-	// TODO multiple miniatures
-	this.minis[0] = document.createElement('canvas');
-	var size = 4 * this.settings.maxdropsize;
-	this.width = size;
-	this.height = size;
+	var miniContext = this.mini.getContext('2d');
 
-	var miniContext = this.minis[0].getContext('2d');
-
-	/*miniContext.fillRect(0, 0, size, size);
-
-	var radGrad = miniContext.createRadialGradient(
-    	size / 2, size / 2, 50, 
-    	size / 2, size / 2, size/2);
-		radGrad.addColorStop(0, "#000");
-		radGrad.addColorStop(1, "transparent");
-
-	miniContext.drawImageGradient(this.img, 0, 0, size, size, radGrad);*/
-
-	miniContext.translate(size/2, size/2);
+	miniContext.translate(this.mini.width/2, this.mini.height/2);
 	miniContext.rotate(Math.PI);
 
-	miniContext.drawImage(this.img, -size/2, -size/2, size, size);
+	miniContext.drawImage(this.img, -this.mini.width/2, -this.mini.height/2, this.mini.width, this.mini.height);
 };
 
-RainyDay.prototype.prepareGlass = function()
+RainyDay.prototype.prepareGlass = function(opacity)
 {
 	this.glass = document.createElement('canvas');
 	this.glass.width = this.canvas.width;
@@ -64,7 +39,7 @@ RainyDay.prototype.prepareGlass = function()
 	this.glass.style.zIndex = this.canvas.style.zIndex + 100;
 	this.canvas.parentNode.appendChild(this.glass);
 	this.context = this.glass.getContext('2d');
-	this.glass.style.opacity = this.settings.glassopacity;
+	this.glass.style.opacity = opacity;
 };
 
 RainyDay.prototype.preset = function(min, base, quan)
@@ -78,9 +53,6 @@ RainyDay.prototype.preset = function(min, base, quan)
 
 RainyDay.prototype.rain = function(presets, speed)
 {
-	this.settings.maxdropsize = presets[presets.length-1].base;
-	this.prepareMiniatures();
-
 	if (speed > 0) {
 		// animation
 		this.presets = presets;
@@ -117,10 +89,8 @@ RainyDay.prototype.rain = function(presets, speed)
 RainyDay.prototype.putDrop = function(drop)
 {
 	drop.draw();
-	if (this.settings.gravity) {
-		if (drop.r1 > this.settings.gravitythreshold) {
-			drop.animate(this.w);
-		}
+	if (this.gravity) {
+		drop.animate();
 	}
 };
 
@@ -185,25 +155,14 @@ RainyDay.prototype.getLinepoints = function(iterations)
 function Drop(rainyday, centerX, centerY, min, base)
 {
 	this.x = Math.floor(centerX);
-	this.y = centerY;
+	this.y = Math.floor(centerY);
 	this.r1 = (Math.random() * base) + min;
 	this.rainyday = rainyday;
-	var iterations = 0;
-	this.distortion = 0;
-	if (this.r1 < 5) {
-		iterations = 5;
-		this.distortion = 1;
-	} else if (this.r1 < 15) {
-		iterations = 6;
-		this.distortion = 0.6;
-	} else {
-		iterations = 7;
-		this.distortion = 0.1;
-	}
-	this.r2 = this.distortion * this.r1;
+	var iterations = 5;
+	this.r2 = 0.88 * this.r1;
 	this.linepoints = rainyday.getLinepoints(iterations);
 	this.context = rainyday.context;
-	this.minis = rainyday.minis;
+	this.mini = rainyday.mini;
 }
 
 Drop.prototype.draw = function() 
@@ -231,35 +190,28 @@ Drop.prototype.draw = function()
 	}
 
 	this.context.clip();
-	// TODO select correct miniature based on the position 
-	this.context.drawImage(this.minis[0], this.x - this.r1, this.y - this.r1);
+	
+	if (this.rainyday.reflection) {
+		this.rainyday.reflection(this);
+	} else {
+		
+	}
 
 	this.context.restore();
 };
 
-Drop.prototype.animate = function(maxY)
+Drop.prototype.animate = function()
 {
 	this.intid = setInterval(
 		(function(self) {
 			return function() {
-				self.context.clearRect(self.x - self.r1 - 1, self.y - self.r1 - 1, 2*self.r1 + 2, 2*self.r1 + 2);
-				if (self.y - self.r1 > maxY) {
-					clearInterval(self.intid);
-					return;
-				}
-
-				if (self.speed) {
-					self.speed += 0.005 * Math.floor(self.r1);
-				} else {
-					self.speed = 0.1;
-					self.distortion = 0.99;
-					self.r2 = self.distortion * self.r1;
-				}
-				self.y += self.speed;
-				self.draw();
-
-				if (self.rainyday.trail) {
-					self.rainyday.trail(self);
+				if (self.rainyday.gravity) {
+					var stopped = self.rainyday.gravity(self);
+					if (!stopped) {
+						if (self.rainyday.trail) {
+							self.rainyday.trail(self);
+						}
+					}
 				}
 			}
 		})(this),
@@ -275,9 +227,44 @@ RainyDay.prototype.TRAIL_DROPS = function(drop)
 	}
 };
 
-RainyDay.prototype.TRAIL_SMUDGE = function(drop)
+RainyDay.prototype.GRAVITY_SIMPLE = function(drop)
 {
-	// TODO
+	if (drop.r1 < 3) {
+		clearInterval(drop.intid);
+		return true;
+	}
+	this.context.clearRect(drop.x - drop.r1 - 1, drop.y - drop.r1 - 1, 2*drop.r1 + 2, 2*drop.r1 + 2);
+	if (drop.y - drop.r1 > this.glass.height) {
+		clearInterval(drop.intid);
+		return true;
+	}
+
+	if (drop.speed) {
+		drop.speed += 0.005 * Math.floor(drop.r1);
+	} else {
+		drop.speed = 0.1;
+	}
+	drop.y += drop.speed;
+	drop.draw();
+	
+	return false;
+};
+
+RainyDay.prototype.REFLECTION_NONE = function(drop)
+{
+	this.context.fillStyle = '#8ED6FF';
+	this.context.fill();
+};
+
+RainyDay.prototype.REFLECTION_HQ = function(drop)
+{
+	var mx = (drop.x * this.mini.width) / this.glass.width;
+	var my = (drop.y * this.mini.height) / this.glass.height;
+	var mw = drop.r1 * 10;
+	var mh = drop.r1 * 10;
+
+	this.context.drawImage(this.mini, (mx - mw) < 0 ? 0 : (mx - mw), (my - mh) < 0 ? 0 : (my - mh), 
+			mw * 2, mh * 2, drop.x - drop.r1, drop.y - drop.r1, 2 * drop.r1, 2 * drop.r1);
 };
 
 var mul_table = [
@@ -329,61 +316,51 @@ RainyDay.prototype.prepareBackground = function(radius, width, height)
 	}
 
     var context = this.canvas.getContext("2d");
-    context.clearRect(0, 0, width, height );
+    context.clearRect(0, 0, width, height);
     context.drawImage(this.img, 0, 0, width, height);
 
-	if ( isNaN(radius) || radius < 1 ) return;
+	if (isNaN(radius) || radius < 1) return;
 
 	this.stackBlurCanvasRGB(0, 0, width, height, radius);
 };
 
 RainyDay.prototype.stackBlurCanvasRGB = function(top_x, top_y, width, height, radius)
 {
-	if ( isNaN(radius) || radius < 1 ) return;
 	radius |= 0;
 	
 	var context = this.canvas.getContext("2d");
-	var imageData;
-	
-	try {
-		imageData = context.getImageData(top_x, top_y, width, height);
-	} catch(e) {
-	  alert("Cannot access image " + e);
-	  throw new Error("unable to access image data: " + e);
-	}
+	var imageData = context.getImageData(top_x, top_y, width, height);
 
 	var pixels = imageData.data;
-			
+
 	var x, y, i, p, yp, yi, yw, r_sum, g_sum, b_sum,
 	r_out_sum, g_out_sum, b_out_sum,
 	r_in_sum, g_in_sum, b_in_sum,
 	pr, pg, pb, rbs;
-			
+
 	var div = radius + radius + 1;
 	var w4 = width << 2;
 	var widthMinus1  = width - 1;
 	var heightMinus1 = height - 1;
 	var radiusPlus1  = radius + 1;
 	var sumFactor = radiusPlus1 * ( radiusPlus1 + 1 ) / 2;
-	
+
 	var stackStart = new BlurStack();
 	var stack = stackStart;
-	for ( i = 1; i < div; i++ )
-	{
+	for (i = 1; i < div; i++) {
 		stack = stack.next = new BlurStack();
-		if ( i == radiusPlus1 ) var stackEnd = stack;
+		if (i == radiusPlus1) var stackEnd = stack;
 	}
 	stack.next = stackStart;
 	var stackIn = null;
 	var stackOut = null;
-	
+
 	yw = yi = 0;
 	
 	var mul_sum = mul_table[radius];
 	var shg_sum = shg_table[radius];
-	
-	for ( y = 0; y < height; y++ )
-	{
+
+	for (y = 0; y < height; y++) {
 		r_in_sum = g_in_sum = b_in_sum = r_sum = g_sum = b_sum = 0;
 		
 		r_out_sum = radiusPlus1 * ( pr = pixels[yi] );
@@ -396,16 +373,14 @@ RainyDay.prototype.stackBlurCanvasRGB = function(top_x, top_y, width, height, ra
 		
 		stack = stackStart;
 		
-		for( i = 0; i < radiusPlus1; i++ )
-		{
+		for(i = 0; i < radiusPlus1; i++) {
 			stack.r = pr;
 			stack.g = pg;
 			stack.b = pb;
 			stack = stack.next;
 		}
 		
-		for( i = 1; i < radiusPlus1; i++ )
-		{
+		for(i = 1; i < radiusPlus1; i++) {
 			p = yi + (( widthMinus1 < i ? widthMinus1 : i ) << 2 );
 			r_sum += ( stack.r = ( pr = pixels[p])) * ( rbs = radiusPlus1 - i );
 			g_sum += ( stack.g = ( pg = pixels[p+1])) * rbs;
@@ -417,12 +392,10 @@ RainyDay.prototype.stackBlurCanvasRGB = function(top_x, top_y, width, height, ra
 			
 			stack = stack.next;
 		}
-		
-		
+
 		stackIn = stackStart;
 		stackOut = stackEnd;
-		for ( x = 0; x < width; x++ )
-		{
+		for (x = 0; x < width; x++) {
 			pixels[yi]   = (r_sum * mul_sum) >> shg_sum;
 			pixels[yi+1] = (g_sum * mul_sum) >> shg_sum;
 			pixels[yi+2] = (b_sum * mul_sum) >> shg_sum;
@@ -463,8 +436,7 @@ RainyDay.prototype.stackBlurCanvasRGB = function(top_x, top_y, width, height, ra
 	}
 
 	
-	for ( x = 0; x < width; x++ )
-	{
+	for (x = 0; x < width; x++) {
 		g_in_sum = b_in_sum = r_in_sum = g_sum = b_sum = r_sum = 0;
 		
 		yi = x << 2;
@@ -478,8 +450,7 @@ RainyDay.prototype.stackBlurCanvasRGB = function(top_x, top_y, width, height, ra
 		
 		stack = stackStart;
 		
-		for( i = 0; i < radiusPlus1; i++ )
-		{
+		for(i = 0; i < radiusPlus1; i++) {
 			stack.r = pr;
 			stack.g = pg;
 			stack.b = pb;
@@ -488,8 +459,7 @@ RainyDay.prototype.stackBlurCanvasRGB = function(top_x, top_y, width, height, ra
 		
 		yp = width;
 		
-		for( i = 1; i <= radius; i++ )
-		{
+		for(i = 1; i <= radius; i++) {
 			yi = ( yp + x ) << 2;
 			
 			r_sum += ( stack.r = ( pr = pixels[yi])) * ( rbs = radiusPlus1 - i );
@@ -511,8 +481,7 @@ RainyDay.prototype.stackBlurCanvasRGB = function(top_x, top_y, width, height, ra
 		yi = x;
 		stackIn = stackStart;
 		stackOut = stackEnd;
-		for ( y = 0; y < height; y++ )
-		{
+		for (y = 0; y < height; y++) {
 			p = yi << 2;
 			pixels[p]   = (r_sum * mul_sum) >> shg_sum;
 			pixels[p+1] = (g_sum * mul_sum) >> shg_sum;
@@ -560,73 +529,3 @@ function BlurStack()
 	this.a = 0;
 	this.next = null;
 }
-
-(function () {
-    // If browser doesn't support canvas exit function.
-    if (!CanvasRenderingContext2D) return;
-
-    // holds a dynamically create canvas element that the gradient is drawn onto.
-    var imageGradientCanvas;
-
-    CanvasRenderingContext2D.prototype.drawImageGradient = function (img, x, y, w, h, gradient) {
-        var ctx = this;
-
-        // throw error if image to use for gradient hasn't loaded.
-        if (!img.complete) {
-            var err = new Error();
-            err.message = "CanvasRenderingContext2D.prototype.drawImageGradient: The image has not loaded."
-            throw err;
-        }
-
-        if (!imageGradientCanvas) {
-            imageGradientCanvas = document.createElement("canvas");
-        }
-
-        imageGradientCanvas.width = w;
-        imageGradientCanvas.height = h;
-
-        var imgCtx = imageGradientCanvas.getContext("2d");
-
-        var gradientImageData = createRectangularGradientImageData();
-
-        imgCtx.drawImage(img, 0, 0, w, h);
-
-        var imageImageData = imgCtx.getImageData(0, 0, w, h);
-
-        var ctxImageData = ctx.getImageData(x, y, w, h);
-
-        var opacity = 1;
-
-        var ctxImageDataData = ctxImageData.data;
-        var imageImageDataData = imageImageData.data;
-        var gradientImageDataData = gradientImageData.data;
-        var ctxImageDataDataLength = ctxImageData.data.length;
-
-        var i;
-        for (i = 0; i < ctxImageDataDataLength; i += 4) {
-            opacity = gradientImageDataData[i + 3] / 255;
-
-            // Update rgb values of context image data.
-            ctxImageDataData[i] =
-            (imageImageDataData[i] * opacity) +
-            (ctxImageDataData[i] * (1 - opacity));
-
-            ctxImageDataData[i + 1] =
-            (imageImageDataData[i + 1] * opacity) +
-            (ctxImageDataData[i + 1] * (1 - opacity));
-
-            ctxImageDataData[i + 2] =
-            (imageImageDataData[i + 2] * opacity) +
-            (ctxImageDataData[i + 2] * (1 - opacity));
-        }
-
-        ctx.putImageData(ctxImageData, x, y);
-
-        function createRectangularGradientImageData() {
-            imgCtx.fillStyle = gradient;
-            imgCtx.fillRect(0, 0, w, h);
-
-            return imgCtx.getImageData(0, 0, w, h);
-        }
-    }
-})();
