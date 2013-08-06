@@ -11,29 +11,26 @@
  				var hash = window.location.hash.substring(1);
  				var settings = {};
  				if (hash == "full") {
- 					settings.collisions = false;
  					settings.trail = true;
  					settings.gravitythreshold = 3;
 
- 					var rd =  new RainyDay('canvas','forest', settings);
+ 					var rd =  new RainyDay('canvas','forest', settings, window.innerWidth, window.innerHeight);
  					var presets = [];
  					presets[0] = rd.preset(0, 2, 0.88);
  					presets[1] = rd.preset(3, 3, 1);
 					rd.rain(presets, 10);
  				} else if (hash == "light") {
- 					settings.collisions = false;
  					settings.gravitythreshold = 3;
 
- 					var rd =  new RainyDay('canvas','city', settings);
+ 					var rd =  new RainyDay('canvas','city', settings, window.innerWidth, window.innerHeight);
  					var presets = [];
  					presets[0] = rd.preset(3, 3, 1);
 					rd.rain(presets, 100);
  				} else if (hash == "heavy") {
  					settings.gravity = true;
- 					settings.collisions = false;
  					settings.gravitythreshold = 4;
 
- 					var rd =  new RainyDay('canvas','water', settings);
+ 					var rd =  new RainyDay('canvas','water', settings, window.innerWidth, window.innerHeight);
  					var presets = [];
  					presets[0] = rd.preset(4, 8, 0.66);
  					presets[1] = rd.preset(8, 10, 1);
@@ -41,7 +38,7 @@
  				} else if (hash == "pic") {
 					settings.gravity = false;
 
- 					var rd =  new RainyDay('canvas','street', settings);
+ 					var rd =  new RainyDay('canvas','street', settings, window.innerWidth, window.innerHeight);
  					var presets = [];
  					presets[0] = rd.preset(2, 3, 225);
  					presets[1] = rd.preset(8, 10, 100);

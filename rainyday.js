@@ -1,4 +1,4 @@
-function RainyDay(canvasid, sourceid, settings)
+function RainyDay(canvasid, sourceid, settings, width, height)
 {
 	this.canvasid = canvasid;
 	this.canvas = document.getElementById(canvasid);
@@ -8,16 +8,10 @@ function RainyDay(canvasid, sourceid, settings)
 
 	this.settings = this.loadSettings(settings);
 
-	this.prepareBackground();
+	this.prepareBackground(this.settings.imageblur, width, height);
 	this.w = this.canvas.width;
 	this.h = this.canvas.height;
 
-	if (this.settings.collisions) {
-		this.drops = [];
-		for (var i = 0; i < this.w; ++i) {
-			this.drops[i] = new DropList();
-		}
-	}
 	this.prepareGlass();
 }
 
@@ -26,17 +20,10 @@ RainyDay.prototype.loadSettings = function(settings)
 	settings = settings ? settings : {};
 	if (settings.glassopacity === undefined) settings.glassopacity = 0.9;
 	if (settings.imageblur  === undefined) settings.imageblur = 20;
-	if (settings.collisions === undefined) settings.collisions = true;
 	if (settings.gravity === undefined) settings.gravity = true;
 	if (settings.trail === undefined) settings.trail = true;
 	if (settings.gravitythreshold === undefined) settings.gravitythreshold = 5;
 	return settings;
-};
-
-RainyDay.prototype.prepareBackground = function()
-{
-	// TODO proper size and position
-	this.stackBlurImage(this.settings.imageblur, window.innerWidth, window.innerHeight);
 };
 
 RainyDay.prototype.prepareMiniatures = function()
@@ -72,7 +59,10 @@ RainyDay.prototype.prepareGlass = function()
 	this.glass = document.createElement('canvas');
 	this.glass.width = this.canvas.width;
 	this.glass.height = this.canvas.height;
-	this.glass.style = this.canvas.style; // TODO doesn't quite work
+	this.glass.style.position = "absolute";
+	this.glass.style.top = this.canvas.offsetTop;
+	this.glass.style.left = this.canvas.offsetLeft;
+	this.glass.style.zIndex = this.canvas.style.zIndex + 100;
 	this.canvas.parentNode.appendChild(this.glass);
 	this.context = this.glass.getContext('2d');
 	this.glass.style.opacity = this.settings.glassopacity;
@@ -85,7 +75,7 @@ RainyDay.prototype.preset = function(min, base, quan)
 		"base": base,
 		"quan" : quan
 	}
-}
+};
 
 RainyDay.prototype.rain = function(presets, speed)
 {
@@ -128,9 +118,6 @@ RainyDay.prototype.rain = function(presets, speed)
 RainyDay.prototype.putDrop = function(drop)
 {
 	drop.draw();
-	if (this.settings.collisions) {
-		this.drops[Math.floor(drop.x)].push(new DropListItem(drop));
-	}
 	if (this.settings.gravity) {
 		if (drop.r1 > this.settings.gravitythreshold) {
 			drop.animate(this.w);
@@ -262,33 +249,6 @@ Drop.prototype.animate = function(maxY)
 					return;
 				}
 
-				// check for collisions
-				if (self.rainyday.settings.collisions) {
-					for (var i = Math.floor(self.x - self.r1 - 1); i < Math.ceil(self.x + self.r1 + 1); ++i) {
-						var drops = self.rainyday.drops[i];
-						if (drops && drops.first.next != null) {
-							var collider = drops.first.next;
-							while (collider.next != null) {
-								if (collider.value != null && collider.value.y > self.y && collider.value.y <= Math.ceil(self.y + self.r1)) {
-    								if (collider.value.r1 < self.r1) {
-    									// larger one handles the collision
-
-    									self.x = collider.value.x;
-
-    									drops.push(self);
-
-    									// remove the collider
-    									drops.remove(collider);
-
-    									break;
-    								}
-    							}
-    							collider = collider.next;
-							}
-						}
-					}
-				}
-
 				if (self.speed) {
 					self.speed += 0.005 * Math.floor(self.r1);
 				} else {
@@ -348,12 +308,17 @@ var shg_table = [
 		24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24,
 		24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24 ];
 
-RainyDay.prototype.stackBlurImage = function(radius, width, height)
+RainyDay.prototype.prepareBackground = function(radius, width, height)
 {
-    this.canvas.style.width  = width + "px";
-    this.canvas.style.height = height + "px";
-    this.canvas.width = width;
-    this.canvas.height = height;
+	if (width && height) {
+		this.canvas.style.width  = width + "px";
+		this.canvas.style.height = height + "px";
+		this.canvas.width = width;
+		this.canvas.height = height;
+	} else {
+		width = this.canvas.width;
+		height = this.canvas.height;
+	}
 
     var context = this.canvas.getContext("2d");
     context.clearRect(0, 0, width, height );
@@ -373,27 +338,12 @@ RainyDay.prototype.stackBlurCanvasRGB = function(top_x, top_y, width, height, ra
 	var imageData;
 	
 	try {
-	  try {
 		imageData = context.getImageData(top_x, top_y, width, height);
-	  } catch(e) {
-	  
-		// NOTE: this part is supposedly only needed if you want to work with local files
-		// so it might be okay to remove the whole try/catch block and just use
-		// imageData = context.getImageData( top_x, top_y, width, height );
-		try {
-			netscape.security.PrivilegeManager.enablePrivilege("UniversalBrowserRead");
-			imageData = context.getImageData(top_x, top_y, width, height);
-		} catch(e) {
-			alert("Cannot access local image");
-			throw new Error("unable to access local image data: " + e);
-			return;
-		}
-	  }
 	} catch(e) {
-	  alert("Cannot access image");
+	  alert("Cannot access image " + e);
 	  throw new Error("unable to access image data: " + e);
 	}
-			
+
 	var pixels = imageData.data;
 			
 	var x, y, i, p, yp, yi, yw, r_sum, g_sum, b_sum,
@@ -592,7 +542,7 @@ RainyDay.prototype.stackBlurCanvasRGB = function(top_x, top_y, width, height, ra
 	
 	context.putImageData(imageData, top_x, top_y);
 	
-}
+};
 
 function BlurStack()
 {
@@ -601,31 +551,6 @@ function BlurStack()
 	this.b = 0;
 	this.a = 0;
 	this.next = null;
-}
-
-function DropList()
-{
-	this.first = new DropListItem(null);
-	this.first.next = null;
-	this.last = this.first;
-}
-
-DropList.prototype.push = function(item)
-{
-	this.last.next = item;
-	item.previous = this.last;
-	this.last = this.last.next;
-}
-
-DropList.prototype.remove = function(item)
-{
-	item.previous.next = item.next;
-}
-
-function DropListItem(value)
-{
-	this.value = value;
-	return this;
 }
 
 (function () {
