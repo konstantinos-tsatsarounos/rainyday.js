@@ -21,7 +21,6 @@ RainyDay.prototype.loadSettings = function(settings)
 	if (settings.glassopacity === undefined) settings.glassopacity = 0.9;
 	if (settings.imageblur  === undefined) settings.imageblur = 20;
 	if (settings.gravity === undefined) settings.gravity = true;
-	if (settings.trail === undefined) settings.trail = true;
 	if (settings.gravitythreshold === undefined) settings.gravitythreshold = 5;
 	return settings;
 };
@@ -259,17 +258,26 @@ Drop.prototype.animate = function(maxY)
 				self.y += self.speed;
 				self.draw();
 
-				if (self.rainyday.settings.trail) {
-					// leave trail
-					if (!self.trail || self.y - self.trail >= Math.random()*10*self.r1) {
-						self.trail = self.y;
-						self.rainyday.putDrop(new Drop(self.rainyday, self.x, self.y - self.r1 - 5, 0, Math.ceil(self.r1 / 5)));
-					}
+				if (self.rainyday.trail) {
+					self.rainyday.trail(self);
 				}
 			}
 		})(this),
 		10
 	);
+};
+
+RainyDay.prototype.TRAIL_DROPS = function(drop)
+{
+	if (!drop.trail_y || drop.y - drop.trail_y >= Math.random()*10*drop.r1) {
+		drop.trail_y = drop.y;
+		this.putDrop(new Drop(this, drop.x, drop.y - drop.r1 - 5, 0, Math.ceil(drop.r1 / 5)));
+	}
+};
+
+RainyDay.prototype.TRAIL_SMUDGE = function(drop)
+{
+	// TODO
 };
 
 var mul_table = [

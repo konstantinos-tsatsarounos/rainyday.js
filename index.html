@@ -15,35 +15,47 @@
  					settings.gravitythreshold = 3;
 
  					var rd =  new RainyDay('canvas','forest', settings, window.innerWidth, window.innerHeight);
- 					var presets = [];
- 					presets[0] = rd.preset(0, 2, 0.88);
- 					presets[1] = rd.preset(3, 3, 1);
-					rd.rain(presets, 10);
+					rd.rain([
+						rd.preset(0, 2, 0.88),
+						rd.preset(3, 3, 1)
+					], 10);
  				} else if (hash == "light") {
  					settings.gravitythreshold = 3;
 
- 					var rd =  new RainyDay('canvas','city', settings, window.innerWidth, window.innerHeight);
- 					var presets = [];
- 					presets[0] = rd.preset(3, 3, 1);
-					rd.rain(presets, 100);
+ 					var rd = new RainyDay('canvas','city', settings, window.innerWidth, window.innerHeight);
+
+ 					rd.trail = rd.TRAIL_DROPS;
+					rd.rain([
+						rd.preset(3, 3, 1)
+					], 100);
  				} else if (hash == "heavy") {
  					settings.gravity = true;
  					settings.gravitythreshold = 4;
 
  					var rd =  new RainyDay('canvas','water', settings, window.innerWidth, window.innerHeight);
- 					var presets = [];
- 					presets[0] = rd.preset(4, 8, 0.66);
- 					presets[1] = rd.preset(8, 10, 1);
-					rd.rain(presets, 50);
+					rd.rain([
+						rd.preset(4, 8, 0.66),
+						rd.preset(8, 10, 1)
+					], 50);
  				} else if (hash == "pic") {
 					settings.gravity = false;
 
  					var rd =  new RainyDay('canvas','street', settings, window.innerWidth, window.innerHeight);
- 					var presets = [];
- 					presets[0] = rd.preset(2, 3, 225);
- 					presets[1] = rd.preset(8, 10, 100);
-					rd.rain(presets);
- 				}
+					rd.rain([
+						rd.preset(2, 3, 225),
+						rd.preset(8, 10, 100)
+					]);
+ 				} else if (hash == "minitest") {
+					settings.gravity = false;
+					var rd =  new RainyDay('canvas','street', settings, window.innerWidth, window.innerHeight);
+					rd.settings.maxdropsize = 20;
+					rd.prepareMiniatures();
+					for (var x = 100; x < window.innerWidth; x += 100) {
+						for (var y = 100; y < window.innerHeight; y += 100) {
+							rd.putDrop(new Drop(rd, x, y, 5, 10));
+						}
+					}
+				}
  			}
 		</script>
 	</head>
