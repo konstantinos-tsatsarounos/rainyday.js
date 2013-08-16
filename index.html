@@ -9,25 +9,23 @@
 		<script type="text/javascript">
  			function demo() {
  				var hash = window.location.hash.substring(1);
- 				var settings = {};
  				if (hash == "demo1") {
- 					settings.collisions = false;
- 					settings.trail = true;
- 					settings.gravitythreshold = 3;
-
- 					var rd =  new RainyDay('canvas','forest', settings);
- 					var presets = [];
- 					presets[0] = rd.preset(0, 2, 0.88);
- 					presets[1] = rd.preset(3, 3, 1);
-					rd.rain(presets, 10);
+ 					var engine =  new RainyDay('canvas','forest', window.innerWidth, window.innerHeight);
+ 					engine.trail = engine.TRAIL_DROPS;
+ 					engine.reflection = engine.REFLECTION_HQ;
+ 					engine.gravity = engine.GRAVITY_SIMPLE;
+					engine.rain([
+						engine.preset(0, 2, 0.88),
+						engine.preset(3, 3, 1)
+					], 10);
  				} else if (hash == "demo2") {
- 					settings.collisions = false;
- 					settings.gravitythreshold = 3;
-
- 					var rd =  new RainyDay('canvas','city', settings);
- 					var presets = [];
- 					presets[0] = rd.preset(3, 3, 1);
-					rd.rain(presets, 100);
+ 					var engine = new RainyDay('canvas','city', window.innerWidth, window.innerHeight);
+ 					engine.trail = engine.TRAIL_DROPS;
+ 					engine.reflection = engine.REFLECTION_HQ;
+ 					engine.gravity = engine.GRAVITY_SIMPLE;
+					engine.rain([
+						engine.preset(3, 3, 1)
+					], 100);
  				}
  			}
 		</script>
