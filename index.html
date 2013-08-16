@@ -10,7 +10,7 @@
  			function demo() {
  				var hash = window.location.hash.substring(1);
  				var settings = {};
- 				if (hash == "full") {
+ 				if (hash == "demo1") {
  					settings.collisions = false;
  					settings.trail = true;
  					settings.gravitythreshold = 3;
@@ -20,7 +20,7 @@
  					presets[0] = rd.preset(0, 2, 0.88);
  					presets[1] = rd.preset(3, 3, 1);
 					rd.rain(presets, 10);
- 				} else if (hash == "light") {
+ 				} else if (hash == "demo2") {
  					settings.collisions = false;
  					settings.gravitythreshold = 3;
 
@@ -28,24 +28,6 @@
  					var presets = [];
  					presets[0] = rd.preset(3, 3, 1);
 					rd.rain(presets, 100);
- 				} else if (hash == "heavy") {
- 					settings.gravity = true;
- 					settings.collisions = false;
- 					settings.gravitythreshold = 4;
-
- 					var rd =  new RainyDay('canvas','water', settings);
- 					var presets = [];
- 					presets[0] = rd.preset(4, 8, 0.66);
- 					presets[1] = rd.preset(8, 10, 1);
-					rd.rain(presets, 50);
- 				} else if (hash == "pic") {
-					settings.gravity = false;
-
- 					var rd =  new RainyDay('canvas','street', settings);
- 					var presets = [];
- 					presets[0] = rd.preset(2, 3, 225);
- 					presets[1] = rd.preset(8, 10, 100);
-					rd.rain(presets);
  				}
  			}
 		</script>
@@ -53,8 +35,6 @@
 	<body onload="demo();">
 		<img id="forest" src="forest.jpg" />
 		<img id="city" src="city.jpg" />
-		<img id="water" src="water.jpg" />
-		<img id="street" src="street.jpg" />
 		<div id="cholder">
 			<canvas id="canvas"></canvas>
 		</div>
